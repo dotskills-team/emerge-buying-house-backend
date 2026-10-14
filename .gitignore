@@ -3,3 +3,5 @@ dist
 .env
 .env.*
 !.env.example
+api/*.js
+api/*.js.map
