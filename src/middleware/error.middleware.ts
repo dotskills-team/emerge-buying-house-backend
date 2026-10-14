@@ -12,6 +12,16 @@ export class HttpError extends Error {
   }
 }
 
+// export class HttpError extends Error {
+//   constructor(
+//     public readonly statusCode: number,
+//     message: string,
+//   ) {
+//     super(message);
+//     this.name = 'HttpError';
+//   }
+// }
+
 export const notFoundHandler: RequestHandler = (req, _res, next) => {
   next(new HttpError(404, `Route not found: ${req.method} ${req.originalUrl}`));
 };
