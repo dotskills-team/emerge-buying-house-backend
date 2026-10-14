@@ -37,4 +37,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     message,
     ...(!isProd && statusCode === 500 ? { stack: (err as Error).stack } : {}),
   });
+
+  // res.status(statusCode).json({
+  //   success: false,
+  //   message,
+  //   ...(!isProd && statusCode === 500 ? { stack: (err as Error).stack } : {}),
+  // });
 };
