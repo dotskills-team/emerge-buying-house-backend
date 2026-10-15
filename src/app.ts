@@ -3,7 +3,9 @@ import cors from 'cors';
 import * as helmetModule from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env.js';
-import { apiRouter } from './routes/index.js';
+import { createDefaultAuthService } from './core/auth/auth.factory.js';
+import type { AuthService } from './core/auth/services/auth.service.js';
+import { createApiRouter } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 
 // Typed explicitly so it compiles the same in every module-resolution setup (local, Vercel, etc.).
@@ -12,16 +14,27 @@ const helmet = ('default' in helmetModule
   ? helmetModule.default
   : helmetModule) as unknown as HelmetFn;
 
-export function createApp() {
+export interface AppDeps {
+  authService: AuthService;
+}
+
+export function createApp(deps: AppDeps = { authService: createDefaultAuthService() }) {
   const app = express();
 
   app.disable('x-powered-by');
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
-  app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+  if (env.NODE_ENV !== 'test') app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
   app.use(express.json({ limit: '1mb' }));
 
-  app.use('/api', apiRouter);
+  app.use(
+    '/api',
+    createApiRouter({
+      authService: deps.authService,
+      secureCookies: env.NODE_ENV === 'production',
+      clientOrigin: env.CLIENT_ORIGIN,
+    }),
+  );
 
   app.use(notFoundHandler);
   app.use(errorHandler);
