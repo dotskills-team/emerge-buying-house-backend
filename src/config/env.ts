@@ -1,6 +1,12 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+const optional = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => v || undefined);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
@@ -13,6 +19,11 @@ const envSchema = z.object({
   ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
   SESSION_MAX_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  // Password reset email. When either is missing, forgot-password reports that email is unavailable.
+  RESEND_API_KEY: optional,
+  EMAIL_FROM: optional,
+  PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+  APP_NAME: z.string().trim().min(1).default('Emerge Buying House'),
 });
 
 const parsed = envSchema.safeParse(process.env);

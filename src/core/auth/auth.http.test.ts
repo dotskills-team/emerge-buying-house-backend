@@ -3,14 +3,18 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import { createApp } from '../../app.js';
-import { TEST_EMAIL, TEST_PASSWORD, createContext } from '../../test/helpers.js';
+import { TEST_EMAIL, TEST_PASSWORD, createContext, noLimits } from '../../test/helpers.js';
 
 let server: Server;
 let base = '';
 
 before(async () => {
   const ctx = await createContext();
-  server = createApp({ authService: ctx.service }).listen(0);
+  server = createApp({
+    authService: ctx.service,
+    passwordService: ctx.passwords,
+    limiters: noLimits,
+  }).listen(0);
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 after(() => server.close());

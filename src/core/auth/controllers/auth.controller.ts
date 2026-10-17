@@ -1,11 +1,26 @@
 import type { Request, Response } from 'express';
+import { ok } from '../../../lib/respond.js';
 import { HttpError } from '../../../middleware/error.middleware.js';
+import { getAuth } from '../middlewares/require-auth.middleware.js';
 import type { AuthService } from '../services/auth.service.js';
+import type { PasswordService } from '../services/password.service.js';
 import type { AuthResult, RequestMeta } from '../types/index.js';
 import { REFRESH_COOKIE, readCookie, refreshCookieOptions } from '../utils/cookies.js';
-import { loginSchema } from '../validators/auth.validator.js';
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  resetPasswordSchema,
+  verifyResetSchema,
+} from '../validators/auth.validator.js';
 
-export function createAuthController(authService: AuthService, opts: { secureCookies: boolean }) {
+const RESET_REQUESTED =
+  'If an account exists for this email, we have sent a link to reset the password.';
+
+export function createAuthController(
+  authService: AuthService,
+  passwordService: PasswordService,
+  opts: { secureCookies: boolean },
+) {
   const cookieOptions = refreshCookieOptions(opts.secureCookies);
 
   const metaOf = (req: Request): RequestMeta => ({
@@ -17,10 +32,7 @@ export function createAuthController(authService: AuthService, opts: { secureCoo
       ...cookieOptions,
       expires: result.refreshExpiresAt,
     });
-    res.status(200).json({
-      success: true,
-      data: { accessToken: result.accessToken, expiresIn: result.expiresIn, user: result.user },
-    });
+    ok(res, { accessToken: result.accessToken, expiresIn: result.expiresIn, user: result.user });
   };
 
   return {
@@ -45,11 +57,31 @@ export function createAuthController(authService: AuthService, opts: { secureCoo
     async logout(req: Request, res: Response): Promise<void> {
       await authService.logout(readCookie(req.headers.cookie, REFRESH_COOKIE));
       res.clearCookie(REFRESH_COOKIE, cookieOptions);
-      res.status(200).json({ success: true, data: null });
+      ok(res, null);
     },
 
     me(_req: Request, res: Response): void {
-      res.status(200).json({ success: true, data: { user: res.locals.auth.user } });
+      ok(res, { user: getAuth(res).user });
+    },
+
+    async forgotPassword(req: Request, res: Response): Promise<void> {
+      const { email } = forgotPasswordSchema.parse(req.body);
+      await passwordService.requestReset(email);
+      ok(res, { message: RESET_REQUESTED });
+    },
+
+    async verifyResetToken(req: Request, res: Response): Promise<void> {
+      const { token } = verifyResetSchema.parse(req.body);
+      await passwordService.verifyResetToken(token);
+      ok(res, { valid: true });
+    },
+
+    async resetPassword(req: Request, res: Response): Promise<void> {
+      const { token, password } = resetPasswordSchema.parse(req.body);
+      await passwordService.resetPassword(token, password);
+      // Every session was revoked, including any on this browser.
+      res.clearCookie(REFRESH_COOKIE, cookieOptions);
+      ok(res, null);
     },
   };
 }

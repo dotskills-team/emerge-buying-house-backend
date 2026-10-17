@@ -58,8 +58,23 @@ export class MongoSessionRepository implements SessionRepository {
     );
   }
 
+  async revokeAllForUser(userId: string, exceptFamilyId?: string): Promise<void> {
+    await SessionModel.updateMany(
+      {
+        userId,
+        status: { $ne: 'revoked' },
+        ...(exceptFamilyId ? { familyId: { $ne: exceptFamilyId } } : {}),
+      },
+      { $set: { status: 'revoked' } },
+    );
+  }
+
   async hasActiveInFamily(familyId: string, now: Date): Promise<boolean> {
-    const found = await SessionModel.exists({ familyId, status: 'active', expiresAt: { $gt: now } });
+    const found = await SessionModel.exists({
+      familyId,
+      status: 'active',
+      expiresAt: { $gt: now },
+    });
     return found !== null;
   }
 }

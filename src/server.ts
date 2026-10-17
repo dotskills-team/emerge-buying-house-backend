@@ -1,5 +1,4 @@
 import { env } from './config/env.js';
-import './config/cloudinary.js';
 import { connectDatabase, disconnectDatabase } from './config/db.js';
 import { createApp } from './app.js';
 

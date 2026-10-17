@@ -54,8 +54,8 @@ export async function verifyAccessToken(
   }
 }
 
-/** Opaque, high-entropy refresh token. Only its SHA-256 hash is ever stored. */
-export const generateRefreshToken = (): string => randomBytes(48).toString('base64url');
+/** Opaque, high-entropy token (refresh and password-reset). Only its SHA-256 hash is ever stored. */
+export const generateSecretToken = (): string => randomBytes(48).toString('base64url');
 
-export const hashRefreshToken = (token: string): string =>
+export const hashSecretToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex');

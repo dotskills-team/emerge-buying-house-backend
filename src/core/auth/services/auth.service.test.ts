@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { SignJWT } from 'jose';
 import { DAY, MINUTE, TEST_EMAIL, TEST_PASSWORD, createContext } from '../../../test/helpers.js';
-import { hashRefreshToken } from '../utils/tokens.js';
+import { hashSecretToken } from '../utils/tokens.js';
 
 const rejectsWith = (code: string) => (err: unknown) => {
   assert.equal((err as { code?: string }).code, code);
@@ -14,10 +14,16 @@ describe('login', () => {
     const ctx = await createContext();
     const result = await ctx.service.login(TEST_EMAIL, TEST_PASSWORD, {});
 
-    assert.deepEqual(result.user, { id: ctx.user.id, name: 'Test User', email: TEST_EMAIL });
+    assert.deepEqual(result.user, {
+      id: ctx.user.id,
+      name: 'Test User',
+      email: TEST_EMAIL,
+      role: 'viewer',
+      permissions: ['posts.read', 'profile.read', 'profile.update', 'auth.password.change'],
+    });
     assert.equal(result.expiresIn, 900);
     const [stored] = [...ctx.sessions.items.values()];
-    assert.equal(stored?.tokenHash, hashRefreshToken(result.refreshToken));
+    assert.equal(stored?.tokenHash, hashSecretToken(result.refreshToken));
     assert.notEqual(stored?.tokenHash, result.refreshToken);
   });
 
@@ -65,7 +71,7 @@ describe('refresh token rotation', () => {
     const second = await ctx.service.refresh(first.refreshToken, {});
 
     assert.notEqual(second.refreshToken, first.refreshToken);
-    const oldSession = await ctx.sessions.findByTokenHash(hashRefreshToken(first.refreshToken));
+    const oldSession = await ctx.sessions.findByTokenHash(hashSecretToken(first.refreshToken));
     assert.equal(oldSession?.status, 'rotated');
     const me = await ctx.service.authenticate(second.accessToken);
     assert.equal(me.user.email, TEST_EMAIL);
@@ -168,8 +174,14 @@ describe('logout', () => {
 
     await ctx.service.logout(next.refreshToken);
 
-    await assert.rejects(ctx.service.authenticate(next.accessToken), rejectsWith('SESSION_REVOKED'));
-    await assert.rejects(ctx.service.refresh(next.refreshToken, {}), rejectsWith('SESSION_REVOKED'));
+    await assert.rejects(
+      ctx.service.authenticate(next.accessToken),
+      rejectsWith('SESSION_REVOKED'),
+    );
+    await assert.rejects(
+      ctx.service.refresh(next.refreshToken, {}),
+      rejectsWith('SESSION_REVOKED'),
+    );
   });
 
   it('is idempotent and tolerates a missing or unknown token', async () => {
@@ -214,7 +226,10 @@ describe('authenticate', () => {
     const ctx = await createContext();
     const login = await ctx.service.login(TEST_EMAIL, TEST_PASSWORD, {});
 
-    await assert.rejects(ctx.service.authenticate('not-a-jwt'), rejectsWith('ACCESS_TOKEN_INVALID'));
+    await assert.rejects(
+      ctx.service.authenticate('not-a-jwt'),
+      rejectsWith('ACCESS_TOKEN_INVALID'),
+    );
 
     const forged = await new SignJWT({ sid: 'x' })
       .setProtectedHeader({ alg: 'HS256' })

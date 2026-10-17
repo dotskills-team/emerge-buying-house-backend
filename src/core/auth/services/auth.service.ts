@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError } from '../../../middleware/error.middleware.js';
 import type {
+  AccessResolver,
   AuthConfig,
+  AuthContext,
   AuthResult,
   PublicUser,
   RequestMeta,
@@ -12,8 +14,8 @@ import type {
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import {
   AccessTokenError,
-  generateRefreshToken,
-  hashRefreshToken,
+  generateSecretToken,
+  hashSecretToken,
   signAccessToken,
   verifyAccessToken,
 } from '../utils/tokens.js';
@@ -21,20 +23,36 @@ import {
 export interface AuthDeps {
   users: UserRepository;
   sessions: SessionRepository;
+  access: AccessResolver;
   config: AuthConfig;
   now?: () => Date;
 }
 
 export type AuthService = ReturnType<typeof createAuthService>;
 
-const fail = (status: number, message: string, code: string) => new HttpError(status, message, code);
+const fail = (status: number, message: string, code: string) =>
+  new HttpError(status, message, code);
 
 // Verified against when the email is unknown, so response time does not reveal which emails exist.
 let dummyHash: Promise<string> | undefined;
 const getDummyHash = () => (dummyHash ??= hashPassword('not-a-real-password'));
 
-export function createAuthService({ users, sessions, config, now = () => new Date() }: AuthDeps) {
-  const toPublic = (u: UserRecord): PublicUser => ({ id: u.id, name: u.name, email: u.email });
+export function createAuthService({
+  users,
+  sessions,
+  access,
+  config,
+  now = () => new Date(),
+}: AuthDeps) {
+  // Permissions are resolved from the database on every call, so a role change or revoke
+  // takes effect on the next request rather than when the access token expires.
+  const toPublic = async (u: UserRecord): Promise<PublicUser> => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    permissions: await access.permissionsFor(u),
+  });
 
   async function issue(
     user: UserRecord,
@@ -43,14 +61,14 @@ export function createAuthService({ users, sessions, config, now = () => new Dat
     meta: RequestMeta,
   ): Promise<AuthResult> {
     const t = now();
-    const refreshToken = generateRefreshToken();
+    const refreshToken = generateSecretToken();
     const refreshExpiresAt = new Date(
       Math.min(t.getTime() + config.refreshTtlMs, familyStartedAt.getTime() + config.sessionMaxMs),
     );
     await sessions.create({
       userId: user.id,
       familyId,
-      tokenHash: hashRefreshToken(refreshToken),
+      tokenHash: hashSecretToken(refreshToken),
       status: 'active',
       expiresAt: refreshExpiresAt,
       familyStartedAt,
@@ -64,7 +82,7 @@ export function createAuthService({ users, sessions, config, now = () => new Dat
       t,
     );
     return {
-      user: toPublic(user),
+      user: await toPublic(user),
       accessToken,
       expiresIn: config.accessTtlSeconds,
       refreshToken,
@@ -100,7 +118,7 @@ export function createAuthService({ users, sessions, config, now = () => new Dat
   async function refresh(rawToken: string | undefined, meta: RequestMeta): Promise<AuthResult> {
     if (!rawToken) throw fail(401, 'Refresh token missing.', 'REFRESH_TOKEN_MISSING');
 
-    const session = await sessions.findByTokenHash(hashRefreshToken(rawToken));
+    const session = await sessions.findByTokenHash(hashSecretToken(rawToken));
     if (!session) throw fail(401, 'Invalid refresh token.', 'INVALID_REFRESH_TOKEN');
     const t = now();
 
@@ -110,7 +128,8 @@ export function createAuthService({ users, sessions, config, now = () => new Dat
 
     if (session.status === 'rotated') {
       const justRotated =
-        session.rotatedAt !== null && t.getTime() - session.rotatedAt.getTime() <= config.reuseGraceMs;
+        session.rotatedAt !== null &&
+        t.getTime() - session.rotatedAt.getTime() <= config.reuseGraceMs;
       // Two tabs/requests racing with the same token: reject the loser, keep the login alive.
       if (justRotated) throw fail(401, 'Refresh already in progress.', 'REFRESH_CONFLICT');
       // A spent token used later means it may have been stolen: kill the whole login.
@@ -149,11 +168,11 @@ export function createAuthService({ users, sessions, config, now = () => new Dat
   /** Idempotent: revokes the whole login (every token in the family). */
   async function logout(rawToken: string | undefined): Promise<void> {
     if (!rawToken) return;
-    const session = await sessions.findByTokenHash(hashRefreshToken(rawToken));
+    const session = await sessions.findByTokenHash(hashSecretToken(rawToken));
     if (session) await sessions.revokeFamily(session.familyId);
   }
 
-  async function authenticate(accessToken: string): Promise<{ user: PublicUser; familyId: string }> {
+  async function authenticate(accessToken: string): Promise<AuthContext> {
     let claims;
     try {
       claims = await verifyAccessToken(config.accessSecret, accessToken, now());
@@ -176,7 +195,7 @@ export function createAuthService({ users, sessions, config, now = () => new Dat
     const user = await users.findById(claims.userId);
     if (!user || !user.isActive) throw fail(401, 'Session has been revoked.', 'SESSION_REVOKED');
 
-    return { user: toPublic(user), familyId: claims.familyId };
+    return { user: await toPublic(user), familyId: claims.familyId };
   }
 
   return { login, refresh, logout, authenticate };

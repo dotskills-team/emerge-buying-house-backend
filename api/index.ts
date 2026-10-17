@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import '../src/config/cloudinary.js';
 import { createApp } from '../src/app.js';
 import { connectDatabase } from '../src/config/db.js';
 

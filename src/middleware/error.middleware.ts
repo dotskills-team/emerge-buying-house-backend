@@ -34,6 +34,14 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
+  // A unique index rejected the write (e.g. two requests racing to create the same slug or email).
+  if ((err as { code?: unknown } | null)?.code === 11000) {
+    res
+      .status(409)
+      .json({ success: false, message: 'This value is already in use.', code: 'DUPLICATE' });
+    return;
+  }
+
   const bodyParserStatus = clientErrorStatus(err);
   const statusCode = err instanceof HttpError ? err.statusCode : (bodyParserStatus ?? 500);
   const isProd = env.NODE_ENV === 'production';
