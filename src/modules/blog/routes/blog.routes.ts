@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from 'express';
+import { z } from 'zod';
 import { cloudinary } from '../../../config/cloudinary.js';
 import { env } from '../../../config/env.js';
 import { getAuth } from '../../../core/auth/middlewares/require-auth.middleware.js';
@@ -15,12 +16,15 @@ import {
   createPostSchema,
   listPostsQuerySchema,
   publicListQuerySchema,
+  publishBodySchema,
   slugParamSchema,
   updateCategorySchema,
   updatePostSchema,
 } from '../validators/blog.validator.js';
 
-const UPLOAD_FOLDER = 'blog';
+const uploadSignatureSchema = z.object({
+  folder: z.enum(['blog', 'products']).default('blog'),
+});
 const UPLOAD_FORMATS = 'jpg,jpeg,png,webp,avif';
 
 export function createBlogRouter(requireAuth: RequestHandler): Router {
@@ -33,8 +37,14 @@ export function createBlogRouter(requireAuth: RequestHandler): Router {
   router.get('/posts/:slug', async (req, res) => {
     ok(res, await blogService.getPublicBySlug(slugParamSchema.parse(req.params).slug));
   });
+  router.get('/posts/:slug/related', async (req, res) => {
+    ok(res, await blogService.related(slugParamSchema.parse(req.params).slug));
+  });
   router.get('/categories', async (_req, res) => {
-    ok(res, await categoryService.list());
+    ok(res, await categoryService.listWithCounts());
+  });
+  router.get('/tags', async (_req, res) => {
+    ok(res, await blogService.popularTags());
   });
 
   /* ---- Admin ---- */
@@ -45,8 +55,16 @@ export function createBlogRouter(requireAuth: RequestHandler): Router {
   admin.get('/posts', canSeePosts, async (req, res) => {
     ok(res, await blogService.listAdmin(getAuth(res).user, listPostsQuerySchema.parse(req.query)));
   });
+  // Registered before `/posts/:id` so "stats" is not read as an id.
+  admin.get('/posts/stats', canSeePosts, async (_req, res) => {
+    ok(res, await blogService.stats(getAuth(res).user));
+  });
   admin.post('/posts', requirePermission('posts.create'), async (req, res) => {
     ok(res, await blogService.create(getAuth(res).user, createPostSchema.parse(req.body)), 201);
+  });
+  admin.post('/posts/:id/duplicate', requirePermission('posts.create'), async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    ok(res, await blogService.duplicate(getAuth(res).user, id), 201);
   });
   admin.get('/posts/:id', canSeePosts, async (req, res) => {
     ok(res, await blogService.getAdmin(getAuth(res).user, idParamSchema.parse(req.params).id));
@@ -60,7 +78,8 @@ export function createBlogRouter(requireAuth: RequestHandler): Router {
     },
   );
   admin.post('/posts/:id/publish', requirePermission('posts.publish'), async (req, res) => {
-    ok(res, await blogService.publish(idParamSchema.parse(req.params).id));
+    const { id } = idParamSchema.parse(req.params);
+    ok(res, await blogService.publish(id, publishBodySchema.parse(req.body)));
   });
   admin.post('/posts/:id/unpublish', requirePermission('posts.publish'), async (req, res) => {
     ok(res, await blogService.unpublish(idParamSchema.parse(req.params).id));
@@ -102,11 +121,13 @@ export function createBlogRouter(requireAuth: RequestHandler): Router {
 
   /**
    * Signed direct upload: the browser sends the file straight to Cloudinary, so images never pass
-   * through this server and the API secret stays here. The signature pins folder and formats.
+   * through this server and the API secret stays here. The signature pins folder and formats;
+   * the folder is one of a fixed list (blog images or product images).
    */
-  admin.post('/uploads/signature', requirePermission('media.upload'), (_req, res) => {
+  admin.post('/uploads/signature', requirePermission('media.upload'), (req, res) => {
+    const { folder } = uploadSignatureSchema.parse(req.body ?? {});
     const timestamp = Math.floor(Date.now() / 1000);
-    const params = { timestamp, folder: UPLOAD_FOLDER, allowed_formats: UPLOAD_FORMATS };
+    const params = { timestamp, folder, allowed_formats: UPLOAD_FORMATS };
     ok(res, {
       cloudName: env.CLOUDINARY_CLOUD_NAME,
       apiKey: env.CLOUDINARY_API_KEY,

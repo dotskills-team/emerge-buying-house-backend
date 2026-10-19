@@ -19,7 +19,13 @@ describe('login', () => {
       name: 'Test User',
       email: TEST_EMAIL,
       role: 'viewer',
-      permissions: ['posts.read', 'profile.read', 'profile.update', 'auth.password.change'],
+      permissions: [
+        'posts.read',
+        'products.read',
+        'profile.read',
+        'profile.update',
+        'auth.password.change',
+      ],
     });
     assert.equal(result.expiresIn, 900);
     const [stored] = [...ctx.sessions.items.values()];

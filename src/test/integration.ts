@@ -9,6 +9,7 @@ import { MongoSessionRepository } from '../core/auth/repositories/session.reposi
 import { createAuthService } from '../core/auth/services/auth.service.js';
 import { createPasswordService } from '../core/auth/services/password.service.js';
 import { accessControl } from '../migrations/001-access-control.js';
+import { products } from '../migrations/002-products.js';
 import type { RoleKey } from '../modules/access/permissions.js';
 import { mongoAccessResolver } from '../modules/access/services/access.service.js';
 import { recordAudit } from '../modules/audit/services/audit.service.js';
@@ -41,6 +42,7 @@ export async function startIntegration() {
   });
   await mongoose.connect(replSet.getUri(), { dbName: 'test' });
   await accessControl.up();
+  await products.up();
   await Promise.all([UserModel.init(), PostModel.init(), CategoryModel.init()]);
 
   const mailer = new MemoryMailer();

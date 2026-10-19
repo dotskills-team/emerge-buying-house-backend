@@ -20,7 +20,16 @@ export const PERMISSION_DEFS = [
   { key: 'posts.publish', group: 'Blog', label: 'Publish and unpublish posts' },
   { key: 'posts.delete', group: 'Blog', label: 'Move posts to trash, restore and delete' },
   { key: 'categories.manage', group: 'Blog', label: 'Manage categories' },
-  { key: 'media.upload', group: 'Blog', label: 'Upload images' },
+  { key: 'products.read', group: 'Products', label: 'View all products' },
+  { key: 'products.manage', group: 'Products', label: 'Create and edit products' },
+  { key: 'products.publish', group: 'Products', label: 'Publish and unpublish products' },
+  {
+    key: 'products.delete',
+    group: 'Products',
+    label: 'Move products to trash, restore and delete',
+  },
+  { key: 'products.categories', group: 'Products', label: 'Manage product categories' },
+  { key: 'media.upload', group: 'Content', label: 'Upload images' },
   { key: 'profile.read', group: 'Account', label: 'View own profile' },
   { key: 'profile.update', group: 'Account', label: 'Edit own profile' },
   { key: 'auth.password.change', group: 'Account', label: 'Change own password' },
@@ -55,6 +64,13 @@ const BLOG_FULL: Permission[] = [
   'categories.manage',
   'media.upload',
 ];
+export const PRODUCTS_FULL: Permission[] = [
+  'products.read',
+  'products.manage',
+  'products.publish',
+  'products.delete',
+  'products.categories',
+];
 
 export interface RoleDefinition {
   name: string;
@@ -81,13 +97,14 @@ export const DEFAULT_ROLES: Record<RoleKey, RoleDefinition> = {
       'permissions.read',
       'audit.read',
       ...BLOG_FULL,
+      ...PRODUCTS_FULL,
       ...ACCOUNT,
     ],
   },
   content_manager: {
     name: 'Content Manager',
-    description: 'Writes, edits and publishes all blog content and manages categories.',
-    permissions: [...BLOG_FULL, ...ACCOUNT],
+    description: 'Writes, edits and publishes blog posts and products, and manages categories.',
+    permissions: [...BLOG_FULL, ...PRODUCTS_FULL, ...ACCOUNT],
   },
   author: {
     name: 'Author',
@@ -96,8 +113,8 @@ export const DEFAULT_ROLES: Record<RoleKey, RoleDefinition> = {
   },
   viewer: {
     name: 'Viewer',
-    description: 'Read-only access to the dashboard and blog posts.',
-    permissions: ['posts.read', ...ACCOUNT],
+    description: 'Read-only access to the dashboard, blog posts and products.',
+    permissions: ['posts.read', 'products.read', ...ACCOUNT],
   },
 };
 

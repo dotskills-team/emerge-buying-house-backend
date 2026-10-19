@@ -145,6 +145,93 @@ describe('blog permissions', () => {
     assert.equal(freed.status, 200);
   });
 
+  it('schedules posts, counts them per status and keeps them off the site until due', async () => {
+    const editor = await api.signIn('content_manager');
+    const create = (title: string) =>
+      api.call<PostView>('/api/blog/admin/posts', {
+        method: 'POST',
+        token: editor.token,
+        body: { title, content: '<p>Body text</p>' },
+      });
+    const future = (await create('Scheduled launch notes')).json.data;
+    const tomorrow = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const scheduled = await api.call<PostView & { publishedAt: string }>(
+      `/api/blog/admin/posts/${future.id}/publish`,
+      { method: 'POST', token: editor.token, body: { publishAt: tomorrow } },
+    );
+    assert.equal(scheduled.json.data.status, 'published');
+    assert.equal(scheduled.json.data.publishedAt, tomorrow);
+
+    assert.equal((await api.call(`/api/blog/posts/${future.slug}`)).status, 404);
+    const tab = await api.call<{ items: PostView[] }>('/api/blog/admin/posts?status=scheduled', {
+      token: editor.token,
+    });
+    assert.deepEqual(
+      tab.json.data.items.map((p) => p.id),
+      [future.id],
+    );
+    const stats = await api.call<Record<string, number>>('/api/blog/admin/posts/stats', {
+      token: editor.token,
+    });
+    assert.equal(stats.json.data.scheduled, 1);
+
+    // Publishing again without a date makes a scheduled post go live now.
+    const now = await api.call<PostView>(`/api/blog/admin/posts/${future.id}/publish`, {
+      method: 'POST',
+      token: editor.token,
+    });
+    assert.equal(now.status, 200);
+    assert.equal((await api.call(`/api/blog/posts/${future.slug}`)).status, 200);
+  });
+
+  it('duplicates as a draft and suggests related posts, category counts and tags', async () => {
+    const editor = await api.signIn('content_manager');
+    const cat = await api.call<{ id: string }>('/api/blog/admin/categories', {
+      method: 'POST',
+      token: editor.token,
+      body: { name: 'Quality desk' },
+    });
+    const make = async (title: string, tags: string[], category?: string) => {
+      const p = await api.call<PostView>('/api/blog/admin/posts', {
+        method: 'POST',
+        token: editor.token,
+        body: { title, content: '<p>Text</p>', tags, ...(category ? { category } : {}) },
+      });
+      await api.call(`/api/blog/admin/posts/${p.json.data.id}/publish`, {
+        method: 'POST',
+        token: editor.token,
+      });
+      return p.json.data;
+    };
+    const a = await make('Inline inspection basics', ['qc', 'inspection'], cat.json.data.id);
+    const b = await make('AQL sampling explained', ['qc'], cat.json.data.id);
+
+    const related = await api.call<PostView[]>(`/api/blog/posts/${a.slug}/related`);
+    assert.equal(related.json.data[0]?.id, b.id);
+    assert.ok(related.json.data.every((p) => p.id !== a.id));
+
+    const cats = await api.call<{ id: string; postCount: number }[]>('/api/blog/categories');
+    assert.equal(cats.json.data.find((c) => c.id === cat.json.data.id)?.postCount, 2);
+    const tags = await api.call<{ tag: string; count: number }[]>('/api/blog/tags');
+    assert.deepEqual(tags.json.data[0], { tag: 'qc', count: 2 });
+
+    const copy = await api.call<PostView & { title: string }>(
+      `/api/blog/admin/posts/${a.id}/duplicate`,
+      { method: 'POST', token: editor.token },
+    );
+    assert.equal(copy.status, 201);
+    assert.equal(copy.json.data.status, 'draft');
+    assert.equal(copy.json.data.title, 'Inline inspection basics (copy)');
+    assert.notEqual(copy.json.data.slug, a.slug);
+
+    const badCanonical = await api.call(`/api/blog/admin/posts/${a.id}`, {
+      method: 'PATCH',
+      token: editor.token,
+      body: { canonicalUrl: 'javascript:alert(1)' },
+    });
+    assert.equal(badCanonical.status, 400);
+  });
+
   it('validates ids and bodies consistently', async () => {
     const editor = await api.signIn('content_manager');
     const badId = await api.call('/api/blog/admin/posts/not-an-id', { token: editor.token });

@@ -15,7 +15,38 @@ export interface ListParams {
 
 export type PostDocument = NonNullable<Awaited<ReturnType<typeof PostModel.findOne>>>;
 
+/** Published, not trashed and not scheduled for later: what the public site may show. */
+export const liveFilter = (): QueryFilter<IPost> => ({
+  status: 'published',
+  deletedAt: null,
+  publishedAt: { $lte: new Date() },
+});
+
 export const postRepository = {
+  count(filter: QueryFilter<IPost>) {
+    return PostModel.countDocuments(filter).exec();
+  },
+
+  async tagCounts(filter: QueryFilter<IPost>, limit: number) {
+    const rows = await PostModel.aggregate<{ _id: string; count: number }>([
+      { $match: filter },
+      { $unwind: '$tags' },
+      { $group: { _id: '$tags', count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+      { $limit: limit },
+    ]);
+    return rows.map((r) => ({ tag: r._id, count: r.count }));
+  },
+
+  /** Live post count per category id. */
+  async categoryCounts(filter: QueryFilter<IPost>) {
+    const rows = await PostModel.aggregate<{ _id: unknown; count: number }>([
+      { $match: { ...filter, category: { $ne: null } } },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+    ]);
+    return new Map(rows.map((r) => [String(r._id), r.count]));
+  },
+
   async list({ filter, sort, page, limit }: ListParams) {
     const [items, total] = await Promise.all([
       PostModel.find(filter)
@@ -48,12 +79,7 @@ export const postRepository = {
   },
 
   findPublishedBySlug(slug: string) {
-    return PostModel.findOne({
-      slug,
-      status: 'published',
-      deletedAt: null,
-      publishedAt: { $lte: new Date() },
-    })
+    return PostModel.findOne({ ...liveFilter(), slug })
       .populate(populate)
       .exec();
   },

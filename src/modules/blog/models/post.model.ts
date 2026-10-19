@@ -16,6 +16,10 @@ export interface IPost {
   seoTitle: string;
   seoDescription: string;
   ogImage: string | null;
+  /** Points search engines at the original when the article first appeared elsewhere. */
+  canonicalUrl: string | null;
+  /** Keeps the article out of search results while leaving it reachable by link. */
+  noIndex: boolean;
   featured: boolean;
   readingTime: number;
   publishedAt: Date | null;
@@ -48,6 +52,8 @@ const postSchema = new Schema<IPost>(
     seoTitle: { type: String, default: '', maxlength: 70 },
     seoDescription: { type: String, default: '', maxlength: 170 },
     ogImage: { type: String, default: null },
+    canonicalUrl: { type: String, default: null },
+    noIndex: { type: Boolean, default: false },
     featured: { type: Boolean, default: false },
     readingTime: { type: Number, default: 1 },
     publishedAt: { type: Date, default: null },

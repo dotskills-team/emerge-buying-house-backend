@@ -1,6 +1,7 @@
 import { HttpError } from '../../../middleware/error.middleware.js';
 import { CategoryModel } from '../models/category.model.js';
 import { PostModel } from '../models/post.model.js';
+import { liveFilter, postRepository } from '../repositories/post.repository.js';
 import { slugify } from '../utils/blog.utils.js';
 import type { CreateCategoryInput, UpdateCategoryInput } from '../validators/blog.validator.js';
 
@@ -16,6 +17,15 @@ async function assertSlugFree(slug: string, excludeId?: string) {
 export const categoryService = {
   list() {
     return CategoryModel.find().sort({ name: 1 }).exec();
+  },
+
+  /** Public list: each category with its number of live posts. */
+  async listWithCounts() {
+    const [categories, counts] = await Promise.all([
+      this.list(),
+      postRepository.categoryCounts(liveFilter()),
+    ]);
+    return categories.map((c) => ({ ...c.toJSON(), postCount: counts.get(String(c._id)) ?? 0 }));
   },
 
   async create(input: CreateCategoryInput) {

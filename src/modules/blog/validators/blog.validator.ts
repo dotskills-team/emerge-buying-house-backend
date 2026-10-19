@@ -20,15 +20,23 @@ const postFields = {
   seoTitle: z.string().trim().max(70),
   seoDescription: z.string().trim().max(170),
   ogImage: z.url().nullable(),
+  canonicalUrl: z
+    .url({ protocol: /^https?$/ })
+    .max(500)
+    .nullable(),
+  noIndex: z.boolean(),
   featured: z.boolean(),
 };
 
 export const createPostSchema = z.object(postFields).partial().extend({ title: postFields.title });
 export const updatePostSchema = z.object(postFields).partial();
 
+/** Admin list filter. `scheduled` = published with a future date; `published` = live now. */
+export const POST_FILTER_STATUSES = [...POST_STATUSES, 'scheduled'] as const;
+
 export const listPostsQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
-  status: z.enum(POST_STATUSES).optional(),
+  status: z.enum(POST_FILTER_STATUSES).optional(),
   category: objectIdSchema.optional(),
   trash: z
     .enum(['true', 'false'])
@@ -39,10 +47,21 @@ export const listPostsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
+/** Optional publish date: a future date schedules the post; a past date backdates it. */
+export const publishBodySchema = z
+  .object({ publishAt: z.coerce.date().optional() })
+  .optional()
+  .transform((b) => b ?? {});
+
 export const publicListQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
   category: z.string().trim().max(80).optional(), // category slug
   tag: z.string().trim().max(40).optional(),
+  featured: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  exclude: z.string().trim().max(200).optional(), // slug to leave out, e.g. the featured post
   page: pageSchema,
   limit: z.coerce.number().int().min(1).max(30).default(9),
 });
@@ -64,5 +83,6 @@ export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 export type ListPostsQuery = z.infer<typeof listPostsQuerySchema>;
 export type PublicListQuery = z.infer<typeof publicListQuerySchema>;
+export type PublishBody = z.infer<typeof publishBodySchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;

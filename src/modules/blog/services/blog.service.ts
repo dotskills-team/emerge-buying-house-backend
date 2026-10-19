@@ -5,7 +5,7 @@ import { HttpError } from '../../../middleware/error.middleware.js';
 import { escapeRegExp } from '../../../utils/regex.js';
 import { CategoryModel } from '../models/category.model.js';
 import type { IPost } from '../models/post.model.js';
-import { postRepository } from '../repositories/post.repository.js';
+import { liveFilter, postRepository } from '../repositories/post.repository.js';
 import {
   makeExcerpt,
   normalizeTags,
@@ -18,6 +18,7 @@ import type {
   CreatePostInput,
   ListPostsQuery,
   PublicListQuery,
+  PublishBody,
   UpdatePostInput,
 } from '../validators/blog.validator.js';
 import { categoryService } from './category.service.js';
@@ -83,7 +84,12 @@ export const blogService = {
   async listAdmin(actor: PublicUser, query: ListPostsQuery) {
     const filter: QueryFilter<IPost> = { deletedAt: query.trash ? { $ne: null } : null };
     if (!canReadAll(actor)) filter.author = new Types.ObjectId(actor.id);
-    if (query.status) filter.status = query.status;
+    if (query.status === 'draft') filter.status = 'draft';
+    if (query.status === 'published' || query.status === 'scheduled') {
+      filter.status = 'published';
+      filter.publishedAt =
+        query.status === 'published' ? { $lte: new Date() } : { $gt: new Date() };
+    }
     if (query.category) filter.category = new Types.ObjectId(query.category);
     if (query.q) {
       const rx = new RegExp(escapeRegExp(query.q), 'i');
@@ -102,6 +108,49 @@ export const blogService = {
       limit: query.limit,
     });
     return { items, meta: meta(query.page, query.limit, total) };
+  },
+
+  /** Counts behind the status tabs, scoped like the list (an Author only counts their own). */
+  async stats(actor: PublicUser) {
+    const base: QueryFilter<IPost> = canReadAll(actor)
+      ? {}
+      : { author: new Types.ObjectId(actor.id) };
+    const now = new Date();
+    const live = { ...base, deletedAt: null };
+    const [all, draft, published, scheduled, trash] = await Promise.all([
+      postRepository.count(live),
+      postRepository.count({ ...live, status: 'draft' }),
+      postRepository.count({ ...live, status: 'published', publishedAt: { $lte: now } }),
+      postRepository.count({ ...live, status: 'published', publishedAt: { $gt: now } }),
+      postRepository.count({ ...base, deletedAt: { $ne: null } }),
+    ]);
+    return { all, draft, published, scheduled, trash };
+  },
+
+  /** A fresh draft with the same content, owned by whoever made the copy. */
+  async duplicate(actor: PublicUser, id: string) {
+    await assertCanRead(actor, id);
+    const source = await getOrThrow(id);
+    const title = `${source.title} (copy)`.slice(0, 160);
+    return postRepository.create({
+      title,
+      slug: await uniqueSlug(title),
+      excerpt: source.excerpt,
+      content: source.content,
+      coverImage: source.coverImage,
+      category: source.category?._id ?? null,
+      tags: source.tags,
+      author: new Types.ObjectId(actor.id),
+      seoTitle: source.seoTitle,
+      seoDescription: source.seoDescription,
+      ogImage: source.ogImage,
+      canonicalUrl: source.canonicalUrl,
+      noIndex: source.noIndex,
+      featured: false,
+      readingTime: source.readingTime,
+      status: 'draft',
+      publishedAt: null,
+    });
   },
 
   async getAdmin(actor: PublicUser, id: string) {
@@ -125,6 +174,8 @@ export const blogService = {
       seoTitle: input.seoTitle ?? '',
       seoDescription: input.seoDescription ?? '',
       ogImage: input.ogImage ?? null,
+      canonicalUrl: input.canonicalUrl ?? null,
+      noIndex: input.noIndex ?? false,
       featured: input.featured ?? false,
       readingTime: readingTimeMinutes(content),
       status: 'draft',
@@ -160,19 +211,26 @@ export const blogService = {
     if (input.seoTitle !== undefined) post.seoTitle = input.seoTitle;
     if (input.seoDescription !== undefined) post.seoDescription = input.seoDescription;
     if (input.ogImage !== undefined) post.ogImage = input.ogImage;
+    if (input.canonicalUrl !== undefined) post.canonicalUrl = input.canonicalUrl;
+    if (input.noIndex !== undefined) post.noIndex = input.noIndex;
     if (input.featured !== undefined) post.featured = input.featured;
 
     return postRepository.save(post);
   },
 
-  async publish(id: string) {
+  /**
+   * Publishes now, or at `publishAt` (future = scheduled, past = backdated). Without a date a
+   * re-published post keeps its original date, while a scheduled one goes live immediately.
+   */
+  async publish(id: string, { publishAt }: PublishBody = {}) {
     const post = await getOrThrow(id);
     if (!stripHtml(post.content)) {
       throw new HttpError(400, 'Add some content before publishing.', 'PUBLISH_REQUIREMENTS');
     }
+    const now = new Date();
     post.status = 'published';
-    // Keep the original date when a post is re-published.
-    post.publishedAt = post.publishedAt ?? new Date();
+    post.publishedAt =
+      publishAt ?? (post.publishedAt && post.publishedAt <= now ? post.publishedAt : now);
     return postRepository.save(post);
   },
 
@@ -220,11 +278,9 @@ export const blogService = {
   /* ---------- Public ---------- */
 
   async listPublic(query: PublicListQuery) {
-    const filter: QueryFilter<IPost> = {
-      status: 'published',
-      deletedAt: null,
-      publishedAt: { $lte: new Date() },
-    };
+    const filter: QueryFilter<IPost> = liveFilter();
+    if (query.featured !== undefined) filter.featured = query.featured;
+    if (query.exclude) filter.slug = { $ne: query.exclude.toLowerCase() };
 
     if (query.category) {
       const categoryId = await categoryService.findIdBySlug(query.category);
@@ -250,5 +306,39 @@ export const blogService = {
     const post = await postRepository.findPublishedBySlug(slug.toLowerCase());
     if (!post) throw notFound();
     return post;
+  },
+
+  /** Same category or shared tags first, topped up with the latest posts. */
+  async related(slug: string, limit = 3) {
+    const post = await postRepository.findPublishedBySlug(slug.toLowerCase());
+    if (!post) throw notFound();
+    const others: QueryFilter<IPost> = { ...liveFilter(), _id: { $ne: post._id } };
+    const matches: QueryFilter<IPost>[] = [];
+    if (post.category) matches.push({ category: post.category._id });
+    if (post.tags.length) matches.push({ tags: { $in: post.tags } });
+
+    const close = matches.length
+      ? (
+          await postRepository.list({
+            filter: { ...others, $or: matches },
+            sort: { publishedAt: -1 },
+            page: 1,
+            limit,
+          })
+        ).items
+      : [];
+    if (close.length >= limit) return close;
+    const fill = await postRepository.list({
+      filter: { ...others, _id: { $nin: [post._id, ...close.map((p) => p._id)] } },
+      sort: { publishedAt: -1 },
+      page: 1,
+      limit: limit - close.length,
+    });
+    return [...close, ...fill.items];
+  },
+
+  /** Most used tags across live posts, for the blog sidebar. */
+  popularTags(limit = 20) {
+    return postRepository.tagCounts(liveFilter(), limit);
   },
 };

@@ -53,6 +53,7 @@ src/
     profile/                 The signed-in user's own account (/profile)
     audit/                   Audit log of administrative changes (/audit-logs)
     blog/                    Posts and categories: admin (/blog/admin/*) and public (/blog/*)
+    products/                Product catalogue and categories: admin (/products/admin/*) and public (/products/*)
     health/                  /health
   middleware/                Error handler (one response envelope) and rate limiting
   migrations/                Versioned, idempotent data migrations
@@ -79,6 +80,8 @@ on every request, so changes apply immediately.
 | posts.create (write, edit own drafts) | ✓ | ✓ | ✓ | ✓ | |
 | posts.update (edit any post), posts.publish, posts.delete | ✓ | ✓ | ✓ | | |
 | categories.manage | ✓ | ✓ | ✓ | | |
+| products.read (dashboard catalogue) | ✓ | ✓ | ✓ | | ✓ |
+| products.manage, products.publish, products.delete, products.categories | ✓ | ✓ | ✓ | | |
 | media.upload | ✓ | ✓ | ✓ | ✓ | |
 | profile.read, profile.update, auth.password.change | ✓ | ✓ | ✓ | ✓ | ✓ |
 
