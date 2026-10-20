@@ -9,6 +9,8 @@ export interface ProductImage {
   alt: string;
   width?: number;
   height?: number;
+  /** Tiny inline preview shown blurred while the photo loads. */
+  blur?: string;
 }
 
 export interface ProductSpec {
@@ -59,6 +61,7 @@ const imageSchema = new Schema<ProductImage>(
     alt: { type: String, default: '', maxlength: 200 },
     width: { type: Number },
     height: { type: Number },
+    blur: { type: String },
   },
   { _id: false },
 );

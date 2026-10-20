@@ -10,6 +10,7 @@ import { createAuthService } from '../core/auth/services/auth.service.js';
 import { createPasswordService } from '../core/auth/services/password.service.js';
 import { accessControl } from '../migrations/001-access-control.js';
 import { products } from '../migrations/002-products.js';
+import { inquiries } from '../migrations/003-inquiries.js';
 import type { RoleKey } from '../modules/access/permissions.js';
 import { mongoAccessResolver } from '../modules/access/services/access.service.js';
 import { recordAudit } from '../modules/audit/services/audit.service.js';
@@ -43,6 +44,7 @@ export async function startIntegration() {
   await mongoose.connect(replSet.getUri(), { dbName: 'test' });
   await accessControl.up();
   await products.up();
+  await inquiries.up();
   await Promise.all([UserModel.init(), PostModel.init(), CategoryModel.init()]);
 
   const mailer = new MemoryMailer();
@@ -63,7 +65,12 @@ export async function startIntegration() {
     config: { resetTtlMs: 30 * 60_000, appUrl: 'http://localhost:3000', appName: 'Test App' },
   });
 
-  const server: Server = createApp({ authService, passwordService, limiters: noLimits }).listen(0);
+  const server: Server = createApp({
+    authService,
+    passwordService,
+    limiters: noLimits,
+    mailer,
+  }).listen(0);
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
   async function call<T = unknown>(path: string, opts: CallOptions = {}): Promise<ApiResponse<T>> {

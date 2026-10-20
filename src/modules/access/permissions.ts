@@ -30,6 +30,13 @@ export const PERMISSION_DEFS = [
   },
   { key: 'products.categories', group: 'Products', label: 'Manage product categories' },
   { key: 'media.upload', group: 'Content', label: 'Upload images' },
+  { key: 'inquiries.read', group: 'Inquiries', label: 'View contact form messages' },
+  {
+    key: 'inquiries.manage',
+    group: 'Inquiries',
+    label: 'Reply to messages and change their status',
+  },
+  { key: 'inquiries.delete', group: 'Inquiries', label: 'Delete contact form messages' },
   { key: 'profile.read', group: 'Account', label: 'View own profile' },
   { key: 'profile.update', group: 'Account', label: 'Edit own profile' },
   { key: 'auth.password.change', group: 'Account', label: 'Change own password' },
@@ -72,6 +79,12 @@ export const PRODUCTS_FULL: Permission[] = [
   'products.categories',
 ];
 
+export const INQUIRIES_FULL: Permission[] = [
+  'inquiries.read',
+  'inquiries.manage',
+  'inquiries.delete',
+];
+
 export interface RoleDefinition {
   name: string;
   description: string;
@@ -86,7 +99,8 @@ export const DEFAULT_ROLES: Record<RoleKey, RoleDefinition> = {
   },
   admin: {
     name: 'Admin',
-    description: 'Manages users and all content. Cannot change Super Admins or role definitions.',
+    description:
+      'Manages users, all content and contact messages. Cannot change Super Admins or role definitions.',
     permissions: [
       'users.read',
       'users.create',
@@ -98,6 +112,7 @@ export const DEFAULT_ROLES: Record<RoleKey, RoleDefinition> = {
       'audit.read',
       ...BLOG_FULL,
       ...PRODUCTS_FULL,
+      ...INQUIRIES_FULL,
       ...ACCOUNT,
     ],
   },

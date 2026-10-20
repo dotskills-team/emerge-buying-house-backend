@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { objectIdSchema, pageSchema } from '../../../validators/common.validator.js';
+import {
+  blurDataUrlSchema,
+  objectIdSchema,
+  pageSchema,
+} from '../../../validators/common.validator.js';
 import { PRODUCT_STATUSES } from '../models/product.model.js';
 
 const shortText = (max: number) => z.string().trim().max(max);
@@ -14,6 +18,7 @@ const imageSchema = z.object({
   alt: shortText(200).default(''),
   width: z.number().int().positive().max(20_000).optional(),
   height: z.number().int().positive().max(20_000).optional(),
+  blur: blurDataUrlSchema.optional(),
 });
 
 const specSchema = z.object({

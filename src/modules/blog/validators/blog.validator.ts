@@ -1,11 +1,16 @@
 import { z } from 'zod';
-import { objectIdSchema, pageSchema } from '../../../validators/common.validator.js';
+import {
+  blurDataUrlSchema,
+  objectIdSchema,
+  pageSchema,
+} from '../../../validators/common.validator.js';
 import { POST_STATUSES } from '../models/post.model.js';
 
 const imageSchema = z.object({
   url: z.url(),
   publicId: z.string().max(300).optional(),
   alt: z.string().trim().max(200).default(''),
+  blur: blurDataUrlSchema.optional(),
 });
 
 // No defaults here on purpose: defaults would overwrite stored values on PATCH.

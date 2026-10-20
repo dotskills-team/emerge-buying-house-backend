@@ -24,6 +24,19 @@ const envSchema = z.object({
   EMAIL_FROM: optional,
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
   APP_NAME: z.string().trim().min(1).default('Emerge Buying House'),
+  // Contact form. Who is emailed about each new message (comma-separated); none: no notification.
+  CONTACT_NOTIFY_EMAILS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      (v ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.email('CONTACT_NOTIFY_EMAILS must be comma-separated email addresses'))),
+  // Where visitors' replies to our emails go. Defaults to the first notification address.
+  CONTACT_REPLY_TO: optional.pipe(z.email('CONTACT_REPLY_TO must be an email address').optional()),
 });
 
 const parsed = envSchema.safeParse(process.env);

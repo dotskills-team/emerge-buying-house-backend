@@ -175,6 +175,24 @@ describe('products', () => {
     });
     assert.equal(insecure.status, 400);
 
+    const blur = 'data:image/webp;base64,UklGRhYAAABXRUJQVlA4';
+    const blurred = await api.call<ProductView & { images: { blur?: string }[] }>(
+      '/api/products/admin/products',
+      {
+        method: 'POST',
+        token: editor.token,
+        body: { name: 'Blurred', images: [{ ...IMAGE, blur }] },
+      },
+    );
+    assert.equal(blurred.status, 201);
+    assert.equal(blurred.json.data.images[0]?.blur, blur);
+    const badBlur = await api.call('/api/products/admin/products', {
+      method: 'POST',
+      token: editor.token,
+      body: { name: 'Bad blur', images: [{ ...IMAGE, blur: 'https://example.com/b.jpg' }] },
+    });
+    assert.equal(badBlur.status, 400);
+
     const cat = await api.call<{ id: string }>('/api/products/admin/categories', {
       method: 'POST',
       token: editor.token,

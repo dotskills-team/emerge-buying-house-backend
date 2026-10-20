@@ -8,7 +8,7 @@ export interface IPost {
   slug: string;
   excerpt: string;
   content: string;
-  coverImage: { url: string; publicId?: string; alt: string } | null;
+  coverImage: { url: string; publicId?: string; alt: string; blur?: string } | null;
   status: PostStatus;
   category: Types.ObjectId | null;
   tags: string[];
@@ -33,6 +33,7 @@ const coverImageSchema = new Schema(
     url: { type: String, required: true },
     publicId: { type: String },
     alt: { type: String, default: '', maxlength: 200 },
+    blur: { type: String },
   },
   { _id: false },
 );

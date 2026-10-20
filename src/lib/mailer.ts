@@ -1,8 +1,11 @@
 export interface Mail {
-  to: string;
+  /** One address, or several (Resend accepts up to 50). */
+  to: string | string[];
   subject: string;
   html: string;
   text: string;
+  /** Where the recipient's "Reply" goes, when it should not be the sender address. */
+  replyTo?: string;
 }
 
 export interface Mailer {
@@ -21,7 +24,14 @@ export function createResendMailer(options: { apiKey?: string; from?: string }):
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ from, ...mail }),
+        body: JSON.stringify({
+          from,
+          to: mail.to,
+          subject: mail.subject,
+          html: mail.html,
+          text: mail.text,
+          ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
+        }),
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) {

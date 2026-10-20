@@ -6,6 +6,8 @@ import { env } from './config/env.js';
 import { createDefaultAuthServices } from './core/auth/auth.factory.js';
 import type { AuthService } from './core/auth/services/auth.service.js';
 import type { PasswordService } from './core/auth/services/password.service.js';
+import { createResendMailer, type Mailer } from './lib/mailer.js';
+import { createInquiryService } from './modules/inquiries/services/inquiry.service.js';
 import { createApiRouter } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { createAuthLimiters, type AuthLimiters } from './middleware/rate-limit.middleware.js';
@@ -20,6 +22,8 @@ export interface AppDeps {
   authService: AuthService;
   passwordService: PasswordService;
   limiters?: AuthLimiters;
+  /** Sends contact form emails. Defaults to Resend, configured from the environment. */
+  mailer?: Mailer;
 }
 
 export function createApp(deps: AppDeps = createDefaultAuthServices()) {
@@ -43,6 +47,16 @@ export function createApp(deps: AppDeps = createDefaultAuthServices()) {
         secureCookies: env.NODE_ENV === 'production',
         clientOrigin: env.CLIENT_ORIGIN,
       },
+      inquiryService: createInquiryService({
+        mailer:
+          deps.mailer ?? createResendMailer({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM }),
+        config: {
+          notifyTo: env.CONTACT_NOTIFY_EMAILS,
+          replyTo: env.CONTACT_REPLY_TO,
+          appName: env.APP_NAME,
+          appUrl: new URL(env.CLIENT_ORIGIN).origin,
+        },
+      }),
     }),
   );
 

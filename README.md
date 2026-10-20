@@ -33,7 +33,9 @@ transactions.
 | `CLIENT_ORIGIN` | yes | Frontend origin. Used for CORS, the CSRF origin check and password-reset links |
 | `JWT_ACCESS_SECRET` | yes | 32+ random characters for signing access tokens |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | yes | Signed image uploads for the blog |
-| `RESEND_API_KEY`, `EMAIL_FROM` | for password reset | Resend API key and a sender on a domain verified in Resend. Without both, forgot-password answers "not available" instead of pretending to send |
+| `RESEND_API_KEY`, `EMAIL_FROM` | for email | Resend API key and a sender on a domain verified in Resend. Used for password reset and the contact form. Without both, forgot-password answers "not available" instead of pretending to send, and contact messages are only stored |
+| `CONTACT_NOTIFY_EMAILS` | no | Comma-separated addresses emailed about each new contact form message. Empty: messages are only shown in the dashboard |
+| `CONTACT_REPLY_TO` | no | Where visitors' replies to our emails go (default: the first `CONTACT_NOTIFY_EMAILS` address) |
 | `ACCESS_TOKEN_TTL_MINUTES` (15), `REFRESH_TOKEN_TTL_DAYS` (7), `SESSION_MAX_DAYS` (30) | no | Session lifetimes |
 | `PASSWORD_RESET_TTL_MINUTES` (30) | no | Reset link lifetime |
 | `APP_NAME` ("Emerge Buying House") | no | Name used in emails |
@@ -54,6 +56,7 @@ src/
     audit/                   Audit log of administrative changes (/audit-logs)
     blog/                    Posts and categories: admin (/blog/admin/*) and public (/blog/*)
     products/                Product catalogue and categories: admin (/products/admin/*) and public (/products/*)
+    inquiries/               Contact form: public POST /contact, dashboard inbox (/inquiries)
     health/                  /health
   middleware/                Error handler (one response envelope) and rate limiting
   migrations/                Versioned, idempotent data migrations
@@ -83,6 +86,7 @@ on every request, so changes apply immediately.
 | products.read (dashboard catalogue) | ✓ | ✓ | ✓ | | ✓ |
 | products.manage, products.publish, products.delete, products.categories | ✓ | ✓ | ✓ | | |
 | media.upload | ✓ | ✓ | ✓ | ✓ | |
+| inquiries.read, inquiries.manage (reply, status, notes), inquiries.delete | ✓ | ✓ | | | |
 | profile.read, profile.update, auth.password.change | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ¹ never on Super Admin accounts. ² only roles whose permissions they hold themselves; never Super Admin.

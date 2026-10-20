@@ -52,6 +52,13 @@ export const createAuthLimiters = () => ({
     limit: 10,
     message: 'Too many password attempts. Wait a few minutes and try again.',
   }),
+  // The public contact form: generous for a real buyer, tight enough to stop a flood of spam.
+  contact: createLimiter({
+    windowMs: 30 * MINUTE,
+    limit: 5,
+    message:
+      'You have sent several messages in a short time. Please wait a little, or email us directly.',
+  }),
 });
 
 export type AuthLimiters = ReturnType<typeof createAuthLimiters>;

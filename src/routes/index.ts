@@ -8,6 +8,8 @@ import { createAccessRouter } from '../modules/access/routes/access.routes.js';
 import { createAuditRouter } from '../modules/audit/routes/audit.routes.js';
 import { createBlogRouter } from '../modules/blog/routes/blog.routes.js';
 import { healthRouter } from '../modules/health/routes/health.routes.js';
+import { createInquiriesRouter } from '../modules/inquiries/routes/inquiries.routes.js';
+import type { InquiryService } from '../modules/inquiries/services/inquiry.service.js';
 import { createProductsRouter } from '../modules/products/routes/products.routes.js';
 import { createProfileRouter } from '../modules/profile/routes/profile.routes.js';
 import { createUsersRouter } from '../modules/users/routes/users.routes.js';
@@ -17,6 +19,7 @@ export interface ApiRouterDeps {
   passwordService: PasswordService;
   limiters: AuthLimiters;
   authOptions: AuthRouterOptions;
+  inquiryService: InquiryService;
 }
 
 export function createApiRouter(deps: ApiRouterDeps): Router {
@@ -45,6 +48,13 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   router.use('/audit-logs', createAuditRouter(requireAuth));
   router.use('/blog', createBlogRouter(requireAuth));
   router.use('/products', createProductsRouter(requireAuth));
+  router.use(
+    createInquiriesRouter({
+      requireAuth,
+      service: deps.inquiryService,
+      contactLimiter: deps.limiters.contact,
+    }),
+  );
   router.use(createAccessRouter(requireAuth));
 
   return router;

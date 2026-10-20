@@ -6,3 +6,4 @@ process.env.CLOUDINARY_CLOUD_NAME = 'test';
 process.env.CLOUDINARY_API_KEY = 'test';
 process.env.CLOUDINARY_API_SECRET = 'test';
 process.env.JWT_ACCESS_SECRET = 'test-secret-test-secret-test-secret-0123';
+process.env.CONTACT_NOTIFY_EMAILS = 'sales@example.com, owner@example.com';
