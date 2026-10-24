@@ -40,6 +40,7 @@ export const noLimits: AuthLimiters = {
   passwordReset: passThrough,
   passwordChange: passThrough,
   contact: passThrough,
+  chat: passThrough,
 };
 
 export async function createContext(

@@ -1,6 +1,7 @@
 import { accessControl } from './001-access-control.js';
 import { products } from './002-products.js';
 import { inquiries } from './003-inquiries.js';
+import { chatbot } from './004-chatbot.js';
 
 export interface Migration {
   /** Sortable and unique, e.g. "001-access-control". Never rename one that has been applied. */
@@ -12,4 +13,4 @@ export interface Migration {
 }
 
 /** Applied in this order. Append new migrations; never reorder or edit applied ones. */
-export const migrations: Migration[] = [accessControl, products, inquiries];
+export const migrations: Migration[] = [accessControl, products, inquiries, chatbot];

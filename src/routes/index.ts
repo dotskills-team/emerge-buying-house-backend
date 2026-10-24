@@ -7,6 +7,7 @@ import type { AuthLimiters } from '../middleware/rate-limit.middleware.js';
 import { createAccessRouter } from '../modules/access/routes/access.routes.js';
 import { createAuditRouter } from '../modules/audit/routes/audit.routes.js';
 import { createBlogRouter } from '../modules/blog/routes/blog.routes.js';
+import { createChatbotRouter } from '../modules/chatbot/routes/chatbot.routes.js';
 import { healthRouter } from '../modules/health/routes/health.routes.js';
 import { createInquiriesRouter } from '../modules/inquiries/routes/inquiries.routes.js';
 import type { InquiryService } from '../modules/inquiries/services/inquiry.service.js';
@@ -48,6 +49,7 @@ export function createApiRouter(deps: ApiRouterDeps): Router {
   router.use('/audit-logs', createAuditRouter(requireAuth));
   router.use('/blog', createBlogRouter(requireAuth));
   router.use('/products', createProductsRouter(requireAuth));
+  router.use('/chatbot', createChatbotRouter({ requireAuth, chatLimiter: deps.limiters.chat }));
   router.use(
     createInquiriesRouter({
       requireAuth,

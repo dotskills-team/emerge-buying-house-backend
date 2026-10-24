@@ -51,7 +51,7 @@ export class MongoUserRepository implements UserRepository {
     const doc = await UserModel.findByIdAndUpdate(
       id,
       { $inc: { failedLoginAttempts: 1 } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<UserDoc>();
     return doc?.failedLoginAttempts ?? 0;
   }

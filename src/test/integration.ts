@@ -11,6 +11,7 @@ import { createPasswordService } from '../core/auth/services/password.service.js
 import { accessControl } from '../migrations/001-access-control.js';
 import { products } from '../migrations/002-products.js';
 import { inquiries } from '../migrations/003-inquiries.js';
+import { chatbot } from '../migrations/004-chatbot.js';
 import type { RoleKey } from '../modules/access/permissions.js';
 import { mongoAccessResolver } from '../modules/access/services/access.service.js';
 import { recordAudit } from '../modules/audit/services/audit.service.js';
@@ -45,6 +46,7 @@ export async function startIntegration() {
   await accessControl.up();
   await products.up();
   await inquiries.up();
+  await chatbot.up();
   await Promise.all([UserModel.init(), PostModel.init(), CategoryModel.init()]);
 
   const mailer = new MemoryMailer();

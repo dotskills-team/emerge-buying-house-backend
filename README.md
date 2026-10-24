@@ -24,6 +24,7 @@ transactions.
 | `npm run typecheck` / `npm run lint` | Static checks |
 | `npm run migrate` | Apply pending migrations (`-- --status` lists them, `-- --down <id>` rolls one back) |
 | `npm run seed:admin` | Create an account from the command line (default role: Super Admin; `--role` to choose) |
+| `npm run seed:chatbot` | Add the chatbot's starter answers (modules/chatbot/seed-answers.ts). Safe to re-run: existing questions are skipped, never overwritten |
 
 ## Environment variables
 
@@ -57,6 +58,7 @@ src/
     blog/                    Posts and categories: admin (/blog/admin/*) and public (/blog/*)
     products/                Product catalogue and categories: admin (/products/admin/*) and public (/products/*)
     inquiries/               Contact form: public POST /contact, dashboard inbox (/inquiries)
+    chatbot/                 Website assistant: public /chatbot/ask, answers and unanswered questions (/chatbot/admin/*)
     health/                  /health
   middleware/                Error handler (one response envelope) and rate limiting
   migrations/                Versioned, idempotent data migrations
@@ -87,6 +89,7 @@ on every request, so changes apply immediately.
 | products.manage, products.publish, products.delete, products.categories | ✓ | ✓ | ✓ | | |
 | media.upload | ✓ | ✓ | ✓ | ✓ | |
 | inquiries.read, inquiries.manage (reply, status, notes), inquiries.delete | ✓ | ✓ | | | |
+| chatbot.manage (answers, unanswered questions) | ✓ | ✓ | ✓ | | |
 | profile.read, profile.update, auth.password.change | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ¹ never on Super Admin accounts. ² only roles whose permissions they hold themselves; never Super Admin.

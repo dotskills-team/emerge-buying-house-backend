@@ -37,6 +37,11 @@ export const PERMISSION_DEFS = [
     label: 'Reply to messages and change their status',
   },
   { key: 'inquiries.delete', group: 'Inquiries', label: 'Delete contact form messages' },
+  {
+    key: 'chatbot.manage',
+    group: 'Chatbot',
+    label: 'Write chatbot answers and see unanswered questions',
+  },
   { key: 'profile.read', group: 'Account', label: 'View own profile' },
   { key: 'profile.update', group: 'Account', label: 'Edit own profile' },
   { key: 'auth.password.change', group: 'Account', label: 'Change own password' },
@@ -113,13 +118,15 @@ export const DEFAULT_ROLES: Record<RoleKey, RoleDefinition> = {
       ...BLOG_FULL,
       ...PRODUCTS_FULL,
       ...INQUIRIES_FULL,
+      'chatbot.manage',
       ...ACCOUNT,
     ],
   },
   content_manager: {
     name: 'Content Manager',
-    description: 'Writes, edits and publishes blog posts and products, and manages categories.',
-    permissions: [...BLOG_FULL, ...PRODUCTS_FULL, ...ACCOUNT],
+    description:
+      'Writes, edits and publishes blog posts, products and chatbot answers, and manages categories.',
+    permissions: [...BLOG_FULL, ...PRODUCTS_FULL, 'chatbot.manage', ...ACCOUNT],
   },
   author: {
     name: 'Author',

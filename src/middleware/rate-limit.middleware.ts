@@ -53,6 +53,12 @@ export const createAuthLimiters = () => ({
     message: 'Too many password attempts. Wait a few minutes and try again.',
   }),
   // The public contact form: generous for a real buyer, tight enough to stop a flood of spam.
+  // Chat questions and answer feedback: a busy conversation fits easily; a script does not.
+  chat: createLimiter({
+    windowMs: 10 * MINUTE,
+    limit: 60,
+    message: 'Too many messages in a short time. Please wait a moment and try again.',
+  }),
   contact: createLimiter({
     windowMs: 30 * MINUTE,
     limit: 5,
