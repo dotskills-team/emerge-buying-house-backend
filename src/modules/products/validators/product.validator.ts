@@ -12,8 +12,24 @@ const list = (itemMax: number, count: number) =>
 
 export const MAX_PRODUCT_IMAGES = 12;
 
+/** An uploaded photo (https, e.g. Cloudinary), or an image file the website itself serves. */
+const imageUrlSchema = z.union(
+  [
+    z.url({ protocol: /^https$/ }).max(1000),
+    z
+      .string()
+      .max(300)
+      // A path on this site, e.g. /demo-products/denim.jpg: no "//", no "..", image files only.
+      .regex(
+        /^\/(?!\/)(?!.*\.\.)[\w\-/.]+\.(?:jpe?g|png|webp|avif)$/i,
+        'Use an https image address',
+      ),
+  ],
+  'Use an https image address',
+);
+
 const imageSchema = z.object({
-  url: z.url({ protocol: /^https$/ }).max(1000),
+  url: imageUrlSchema,
   publicId: z.string().max(300).optional(),
   alt: shortText(200).default(''),
   width: z.number().int().positive().max(20_000).optional(),

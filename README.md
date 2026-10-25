@@ -25,6 +25,7 @@ transactions.
 | `npm run migrate` | Apply pending migrations (`-- --status` lists them, `-- --down <id>` rolls one back) |
 | `npm run seed:admin` | Create an account from the command line (default role: Super Admin; `--role` to choose) |
 | `npm run seed:chatbot` | Add the chatbot's starter answers (modules/chatbot/seed-answers.ts). Safe to re-run: existing questions are skipped, never overwritten |
+| `npm run seed:products` | Add the demo catalogue (modules/products/demo-products.ts, photos in the frontend's public/demo-products). `-- --remove` deletes the demo products again; real products are never touched |
 
 ## Environment variables
 

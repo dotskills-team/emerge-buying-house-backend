@@ -16,6 +16,7 @@
     "test": "tsx --import ./src/test/setup.ts --test \"src/**/*.test.ts\"",
     "seed:admin": "tsx src/scripts/create-admin.ts",
     "seed:chatbot": "tsx src/scripts/seed-chatbot.ts",
+    "seed:products": "tsx src/scripts/seed-products.ts",
     "migrate": "tsx src/scripts/migrate.ts"
   },
   "dependencies": {
