@@ -7,14 +7,15 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/server.js",
+    "dev": "node init && tsx watch src/server.ts",
+    "build": "node init && tsc -p tsconfig.build.json",
+    "start": "node init && node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "tsx --import ./src/test/setup.ts --test \"src/**/*.test.ts\"",
     "seed:admin": "tsx src/scripts/create-admin.ts",
+    "seed:categories": "tsx src/scripts/seed-categories.ts",
     "seed:chatbot": "tsx src/scripts/seed-chatbot.ts",
     "seed:products": "tsx src/scripts/seed-products.ts",
     "migrate": "tsx src/scripts/migrate.ts"
